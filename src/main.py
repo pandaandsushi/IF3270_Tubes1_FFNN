@@ -38,11 +38,53 @@ class FFNN:
                 deviation = np.sqrt(self.variance)
                 w = np.random.normal(self.mean, deviation, (self.layers[i],self.layers[i+1]))
                 b = np.random.normal(self.mean, deviation, (1, self.layers[i+1]))
+            elif method == 'xavier':
+                fan_in = self.layers[i]
+                fan_out = self.layers[i+1]
+                limit = np.sqrt(2 / (fan_in + fan_out))
+                w = np.random.normal(0, limit, (self.layers[i], self.layers[i+1]))
+                b = np.zeros((1, self.layers[i+1]))
+            elif method == 'he':
+                fan_in = self.layers[i]
+                limit = np.sqrt(2 / float(fan_in))
+                w = np.random.normal(0, limit, (self.layers[i], self.layers[i+1]))
+                b = np.zeros((1, self.layers[i+1]))
             else:
-                raise ValueError("Method unknown")
+                raise ValueError("Method initialize weight unknown")
 
             weights.append(w)
             biases.append(b)
         return weights, biases
+    
+    def forward(self, input):
+        a = input
+        activations = [a]
+        pre_activations = []
+        
+        for i in range(self.num_layers):
+            sigma = np.dot(a, self.weights[i]) + self.biases[i]
+            pre_activations.append(sigma)
+            
+            if self.activations[i] == 'linear':
+                a = ActivationFunction.linear(sigma)
+            elif self.activations[i] == 'relu':
+                a = ActivationFunction.relu(sigma)
+            elif self.activations[i] == 'sigmoid':
+                a = ActivationFunction.sigmoid(sigma)
+            elif self.activations[i] == 'tanh':
+                a = ActivationFunction.tanh(sigma)
+            elif self.activations[i] == 'softmax':
+                a = ActivationFunction.softmax(sigma)
+            elif self.activations[i] == 'swish':
+                a = ActivationFunction.swish(sigma)
+            elif self.activations[i] == 'softplus':
+                a = ActivationFunction.softplus(sigma)
+            elif self.activations[i] == 'elu':
+                a = ActivationFunction.elu(sigma)
+            else:
+                raise ValueError("Method activation unknown")
+            activations.append(a)
+        
+        return activations, pre_activations
 
     
