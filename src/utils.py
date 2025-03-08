@@ -60,7 +60,7 @@ class LossFunction:
 
         return loss
 
-class derivative:
+class Derivative:
     def __init__(self):
         pass
 
