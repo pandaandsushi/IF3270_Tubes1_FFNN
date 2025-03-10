@@ -74,7 +74,8 @@ class Derivative:
     
     @staticmethod
     def sigmoid(self, x):
-        return x * (1 - x)
+        s = ActivationFunction.sigmoid(x)
+        return s * (1 - s)
     
     @staticmethod
     def tanh(self, x):
