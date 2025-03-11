@@ -24,7 +24,7 @@ class FFNN:
         if seed is not None:
             np.random.seed(seed)
 
-        self.weights, self.biases = self.initialize_weights(method)
+        self.weights, self.biases = self.initialize_weights(self.weight_method)
 
     def save_model(self, file_path):
         model_data = {
@@ -68,8 +68,8 @@ class FFNN:
         biases = []
         for i in range (self.num_layers):
             if (method == "zero"):
-                w = np.zeros((self.layers[i],self.layers[i+1]))
-                b = np.zeros(1,self.layers[i+1])
+                w = np.zeros((self.layers[i], self.layers[i+1]))
+                b = np.zeros((1, self.layers[i+1]))
             elif (method == "uniform"):
                 w = np.random.uniform(self.low_bound, self.up_bound, (self.layers[i],self.layers[i+1]))
                 b = np.random.uniform(self.low_bound, self.up_bound, (1,self.layers[i+1]))
@@ -137,21 +137,62 @@ class FFNN:
             raise ValueError("Loss method unknown")
 
     def backward(self, input, output, activations, pre_activations):
-        # BACKWARD OUTPUT
-        # ∂Err/∂Out
-        if self.loss_function == "mse":
-            dErr_dOut = activations[-1] - output 
-        elif self.loss_function == "binary_crossentropy":
-            dErr_dOut = activations[-1] - output
-        elif self.loss_function == "categorical_crossentropy":
-            dErr_dOut = activations[-1] - output
-        else:
-            raise ValueError("Loss method unknown")
+        batch_size = input.shape[0]
 
-        # ∂Out/∂Net
-        # NEXT: bingung
-        if self.activation_functions[-1] == "sigmoid":
-            dOut_dNet = activations * (1 - activations)
+        delta_loss = activations[-1] - output
 
-        # ∂Net/∂W
-        dNet_dW = activations[-2]
+        weight_gradient = []
+        biases_gradient = []
+
+        for i in range (self.num_layers - 1, -1, -1):
+            prev_activation = activations[i]
+
+            wg = np.dot(prev_activation.T, delta_loss) / batch_size
+            bg = np.mean(delta_loss, axis=0)
+
+            weight_gradient.append(wg)
+            biases_gradient.append(bg)
+
+            if i > 0:
+                z = pre_activations[i-1]
+                activation = self.activation_functions[i-1]
+
+                if activation == 'sigmoid':
+                    sigma_prime = Derivative.sigmoid(z)
+                elif activation == 'relu':
+                    sigma_prime = Derivative.relu(z)
+                elif activation == 'tanh':
+                    sigma_prime = Derivative.tanh(z)
+                elif activation == 'linear':
+                    sigma_prime = Derivative.linear(z)
+                elif activation == 'swish':
+                    sigma_prime = Derivative.swish(z)
+                elif activation == 'softplus':
+                    sigma_prime = Derivative.softplus(z)
+                elif activation == 'elu':
+                    sigma_prime = Derivative.elu(z, alpha=1.0)
+                elif activation == 'softmax':
+                    sigma_prime = Derivative.softmax(z)
+                else:
+                    raise ValueError("Unknown Activation Method")
+                
+                delta = np.dot(delta, self.weights[i].T) * sigma_prime
+
+        return weight_gradient, biases_gradient
+
+    def update_weights(self, weight_gradient, biases_gradient, learning_rate):
+        for i in range(self.num_layers):
+            self.weights[i] -= learning_rate * weight_gradient[i]
+            self.biases[i] -= learning_rate * biases_gradient[i]
+
+    def train(self, x_train, y_train, epoch, learning_rate):
+        for i in range (epoch):
+            act, pre_act = self.forward(x_train)
+        
+            loss = self.count_loss(y_train, act[-1])
+            
+            #wg: weight gradient, bg: bias gradient
+            wg, bg = self.backward(x_train, y_train, act, pre_act)
+
+            self.update_weights(wg, bg, learning_rate)
+
