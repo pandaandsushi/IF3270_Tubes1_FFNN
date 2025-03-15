@@ -79,9 +79,23 @@ class Derivative:
         return 1 - np.tanh(x)**2
     
     @staticmethod
+    # def softmax(x):
+    #     s = ActivationFunction.softmax(x)
+    #     return np.outer(s, s) - np.diag(s)
     def softmax(x):
-        s = ActivationFunction.softmax(x)
-        return np.outer(s, s) - np.diag(s)
+        s = ActivationFunction.softmax(x)  
+        # Shape: (batch_size, num_classes)
+        batch_size, num_classes = s.shape
+
+        # Buat matriks turunan untuk setiap sampel dalam batch
+        jacobian = np.zeros((batch_size, num_classes, num_classes))
+
+        for i in range(batch_size):
+            s_i = s[i].reshape(-1, 1)
+            jacobian[i] = np.diagflat(s_i) - np.dot(s_i, s_i.T)
+
+        # Shape: (batch_size, num_classes, num_classes)
+        return jacobian  
     
     # Bonus: Swish, softplus, and ELU
     @staticmethod
