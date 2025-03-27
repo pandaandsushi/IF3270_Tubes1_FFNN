@@ -79,9 +79,6 @@ class Derivative:
         return 1 - np.tanh(x)**2
     
     @staticmethod
-    # def softmax(x):
-    #     s = ActivationFunction.softmax(x)
-    #     return np.outer(s, s) - np.diag(s)
     def softmax(x):
         s = ActivationFunction.softmax(x)  
         # Shape: (batch_size, num_classes)
