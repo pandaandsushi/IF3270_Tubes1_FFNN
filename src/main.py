@@ -1,5 +1,5 @@
 from sklearn.preprocessing import OneHotEncoder
-from utils import ActivationFunction, LossFunction, Derivative
+from utils import ActivationFunction, LossFunction, Derivative, RMSNorm
 import numpy as np
 import json
 from sklearn.metrics import confusion_matrix
@@ -7,7 +7,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 class FFNN:
-    def __init__(self, layers, activation_functions, loss_function="mse", weight_method='xavier', seed=None, low_bound = -1, up_bound = 1, mean = 0.0, variance = 0.1, regularization=None, lambda_reg=0.01,):
+    def __init__(self, layers, activation_functions, loss_function="mse", weight_method='xavier', seed=None, low_bound = -1, up_bound = 1, mean = 0.0, variance = 0.1, regularization=None, lambda_reg=0.01, rms_norm=False):
         self.layers = layers
         self.activation_functions = activation_functions
         self.loss_function = loss_function
@@ -21,16 +21,23 @@ class FFNN:
         self.variance = variance
         self.regularization = regularization
         self.lambda_reg = lambda_reg
+        self.rms_norm = rms_norm
 
         self.weights = []
         self.biases = []
         self.gradients = []
+        self.rms_layer = []
 
         # agar hasil random bisa sama untuk seed sama
         if seed is not None:
             np.random.seed(seed)
 
         self.weights, self.biases = self.initialize_weights(weight_method)
+
+        if self.rms_norm:
+            self.rms_layer = [RMSNorm(dim=self.layers[i+1]) for i in range (self.num_layers)]
+        else:
+            self.rms_layer = None
 
     def save_model(self, file_path):
         model_data = {
@@ -111,6 +118,10 @@ class FFNN:
             # print(a.shape)
             # print(self.weights[i].shape)
             sigma = np.dot(a, self.weights[i]) + self.biases[i]
+
+            if self.rms_norm:
+                sigma = self.rms_layer[i](sigma)
+
             pre_activations.append(sigma)
 
             if self.activation_functions[i] == 'linear':

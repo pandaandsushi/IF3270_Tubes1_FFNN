@@ -107,4 +107,11 @@ class Derivative:
     @staticmethod
     def elu(x, alpha=1.0):
         return np.where(x > 0, 1, alpha * np.exp(x))
-    
+
+class RMSNorm:
+    def __init__(self, dim):
+        self.dim = dim
+        self.scale = np.ones((1, dim))
+    def __call__(self, x):
+        rms = np.sqrt(np.mean(np.square(x), axis=-1, keepdims=True))
+        return self.scale * (x / rms)
