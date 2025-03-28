@@ -47,14 +47,22 @@ class FFNN:
             "activation_functions": self.activation_functions,
             "loss_function": self.loss_function,
             "weight_method": self.weight_method,
-            "mean": self.mean,
-            "variance": self.variance,
+            "num_layers": self.num_layers,
+            "seed": self.seed,
             "low_bound": self.low_bound,
             "up_bound": self.up_bound,
-            "seed": self.seed,
+            "mean": self.mean,
+            "variance": self.variance,
+            "regularization": self.regularization,
+            "lambda_reg": self.lambda_reg,
+            "rms_norm": self.rms_norm,
+            
             "weights": [w.tolist() for w in self.weights],
-            "biases": [b.tolist() for b in self.biases]
+            "biases": [b.tolist() for b in self.biases],
+            "w_gradients": [wg.tolist() for wg in self.w_gradients],
+            "b_gradients": [bg.tolist() for bg in self.b_gradients],
         }
+
         with open(file_path, "w") as f:
             json.dump(model_data, f)
         print("Model saved successfully to " + file_path)
@@ -67,16 +75,22 @@ class FFNN:
         self.activation_functions = model_data["activation_functions"]
         self.loss_function = model_data["loss_function"]
         self.weight_method = model_data["weight_method"]
-        self.mean = model_data["mean"]
-        self.variance = model_data["variance"]
+        self.num_layers = model_data["num_layers"]
+        self.seed = model_data["seed"]
         self.low_bound = model_data["low_bound"]
         self.up_bound = model_data["up_bound"]
-        self.seed = model_data["seed"]
+        self.mean = model_data["mean"]
+        self.variance = model_data["variance"]
+        self.regularization = model_data["regularization"]
+        self.lambda_reg = model_data["lambda_reg"]
+        self.rms_norm = model_data["rms_norm"]
+        
         self.weights = [np.array(w) for w in model_data["weights"]]
         self.biases = [np.array(b) for b in model_data["biases"]]
+        self.w_gradients = [np.array(wg) for wg in model_data["w_gradients"]]
+        self.b_gradients = [np.array(bg) for bg in model_data["b_gradients"]]
 
-        print("Model loaded successfully from " + file_path)
-
+        print(f"Model loaded successfully from {file_path}")
 
     def initialize_weights(self, method):
         weights = []
