@@ -332,8 +332,8 @@ class FFNN:
 
 
         pos = {}
-        vertical_spacing = 50
-        horizontal_spacing = 50
+        vertical_spacing = 15000
+        horizontal_spacing = 50000
 
         for hidden_idx in range(1, self.num_layers):
             for neuron_idx in range(self.layers[hidden_idx]):
@@ -344,11 +344,11 @@ class FFNN:
             pos[f"o{neuron_idx+1}"] = ((self.num_layers) * horizontal_spacing, neuron_idx * vertical_spacing)
 
         for hidden_idx in range(1, self.num_layers):
-            pos[f"b{hidden_idx}"] = ((hidden_idx) * (horizontal_spacing) - 20, -80)
+            pos[f"b{hidden_idx}"] = ((hidden_idx) * (horizontal_spacing) - 30000, -15000)
 
 
         # Visualisasi graph menggunakan matplotlib
-        plt.figure(figsize=(7, 5))
+        plt.figure(figsize=(8, 6))
         nx.draw(G, pos, with_labels=True, node_size=700, node_color='skyblue', font_size=10, font_weight='bold', arrows=True)
         nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=7)
 
@@ -364,24 +364,24 @@ class FFNN:
         plt.legend()
         plt.show()
 
-    def plot_weight_distribution(self, layer_indices=None):
-        if layer_indices is None:
-            layer_indices = range(self.num_layers)
+    def weight_dist_plot(self, layer_idx=None):
+        if layer_idx is None:
+            layer_idx = range(self.num_layers)
 
-        for i in layer_indices:
-            plt.figure(figsize=(8, 6))
+        for i in layer_idx:
+            plt.figure(figsize=(5, 3))
             plt.hist(self.weights[i].flatten(), bins=50)
             plt.title(f'Weight Distribution for Layer {i+1}')
             plt.xlabel('Weight Value')
             plt.ylabel('Frequency')
             plt.show()
 
-    def plot_gradient_distribution(self, layer_indices=None):
-        if layer_indices is None:
-            layer_indices = range(self.num_layers)
+    def grad_dist_plot(self, layer_idx=None):
+        if layer_idx is None:
+            layer_idx = range(self.num_layers)
 
-        for i in layer_indices:
-            plt.figure(figsize=(8, 6))
+        for i in layer_idx:
+            plt.figure(figsize=(5, 3))
             if i < len(self.w_gradients): 
                 plt.hist(self.w_gradients[i].flatten(), bins=50)
                 plt.title(f'Gradient Distribution for Layer {i+1}')
