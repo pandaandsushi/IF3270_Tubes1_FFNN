@@ -3,7 +3,6 @@ from utils import ActivationFunction, LossFunction, Derivative, RMSNorm
 import numpy as np
 import json
 from sklearn.metrics import confusion_matrix
-import seaborn as sns
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -29,6 +28,8 @@ class FFNN:
         self.w_gradients = []
         self.b_gradients = []
         self.rms_layer = []
+        self.loss_history = []
+        self.val_loss_history = []
 
         # agar hasil random bisa sama untuk seed sama
         if seed is not None:
@@ -61,6 +62,9 @@ class FFNN:
             "biases": [b.tolist() for b in self.biases],
             "w_gradients": [wg.tolist() for wg in self.w_gradients],
             "b_gradients": [bg.tolist() for bg in self.b_gradients],
+
+            "loss_history": self.loss_history,
+            "val_loss_history": self.val_loss_history
         }
 
         with open(file_path, "w") as f:
@@ -89,6 +93,9 @@ class FFNN:
         self.biases = [np.array(b) for b in model_data["biases"]]
         self.w_gradients = [np.array(wg) for wg in model_data["w_gradients"]]
         self.b_gradients = [np.array(bg) for bg in model_data["b_gradients"]]
+
+        self.loss_history = model_data["loss_history"]
+        self.val_loss_history = model_data["val_loss_history"]
 
         print(f"Model loaded successfully from {file_path}")
 
@@ -370,11 +377,12 @@ class FFNN:
         plt.title("FFNN Graph")
         plt.show()
 
-    def plot_loss_curve(self, loss_history):
+    def plot_loss_curve(self, loss_history, val_loss_history):
         plt.plot(loss_history, label="Training Loss")
+        plt.plot(val_loss_history, label="Validation Loss")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.title("Loss Curve")
+        plt.title("Traning Loss vs Val Loss Curve")
         plt.legend()
         plt.show()
 
@@ -403,13 +411,14 @@ class FFNN:
                 plt.ylabel('Frequency')
                 plt.show()
 
-    def train(self, X_train, y_train, epochs, learning_rate, batch_size, verbose):
+    def train(self, X_train, y_train, epochs, learning_rate, batch_size, verbose, X_val=None, y_val=None):
         num_samples = X_train.shape[0]
-        loss_history = []  # Menyimpan loss training history
 
         encoder = OneHotEncoder(sparse_output=False)
         y_train_encoded = encoder.fit_transform(y_train.reshape(-1, 1)) 
             
+        if X_val is not None and y_val is not None:
+            y_val_encoded = encoder.transform(y_val.reshape(-1, 1))
 
         for epoch in range(epochs):
             # Shuffle data at each epoch
@@ -435,11 +444,19 @@ class FFNN:
 
             # Average loss per epoch
             epoch_loss /= (num_samples / batch_size)
-            loss_history.append(epoch_loss)
-            
-            if verbose == 1:
-                print(f"Epoch {epoch + 1}/{epochs} - Loss: {epoch_loss:.4f}")
+            self.loss_history.append(epoch_loss)
 
-        # Display the loss curve after training
-        self.plot_loss_curve(loss_history)
+            # Calculate validation loss
+            if X_val is not None and y_val is not None:
+                activations_val, _ = self.forward(X_val)
+                val_loss = self.count_loss(y_val_encoded, activations_val[-1])
+                self.val_loss_history.append(np.mean(val_loss))
+
+            if verbose == 1:
+                print(f"Epoch {epoch + 1}/{epochs} - Training Loss: {epoch_loss:.4f}", end="")
+                if X_val is not None and y_val is not None:
+                    print(f" - Validation Loss: {self.val_loss_history[-1]:.4f}", end="")
+                print()
+
+        self.plot_loss_curve(self.loss_history, self.val_loss_history)
 
