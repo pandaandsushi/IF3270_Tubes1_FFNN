@@ -55,7 +55,7 @@ class FFNN:
         }
         with open(file_path, "w") as f:
             json.dump(model_data, f)
-        print("Model saved successfully to "+file_path)
+        print("Model saved successfully to " + file_path)
 
     def load_model(self, file_path):
         with open(file_path, "r") as f:
@@ -73,7 +73,7 @@ class FFNN:
         self.weights = [np.array(w) for w in model_data["weights"]]
         self.biases = [np.array(b) for b in model_data["biases"]]
 
-        print("Model loaded successfully from "+file_path)
+        print("Model loaded successfully from " + file_path)
 
 
     def initialize_weights(self, method):
@@ -246,31 +246,13 @@ class FFNN:
 
         return weight_gradient, biases_gradient
 
-    def plot_loss_curve(self, loss_history, val_loss_history=None):
+    def plot_loss_curve(self, loss_history):
         plt.plot(loss_history, label="Training Loss")
-        if val_loss_history is not None:
-            plt.plot(val_loss_history, label="Validation Loss")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.title("Loss Curve")
         plt.legend()
         plt.show()
-
-    def plot_weight_distribution(self):
-        for i, weight in enumerate(self.weights):
-            plt.hist(weight.flatten(), bins=50)
-            plt.title(f'Weight Distribution for Layer {i + 1}')
-            plt.xlabel('Weight Value')
-            plt.ylabel('Frequency')
-            plt.show()
-
-    def plot_gradient_distribution(self):
-        for i, gradient in enumerate(self.gradients):
-            plt.hist(gradient.flatten(), bins=50)
-            plt.title(f'Gradient Distribution for Layer {i + 1}')
-            plt.xlabel('Gradient Value')
-            plt.ylabel('Frequency')
-            plt.show()
 
     def plot_confusion_matrix(self, X_test, y_test):
         activations, _ = self.forward(X_test)
@@ -284,15 +266,25 @@ class FFNN:
         plt.ylabel("True")
         plt.show()
         
-    def train(self, X_train, y_train, X_val=None, y_val=None, epochs=50, learning_rate=0.01, batch_size=32, verbose=True):
+    def plot_model_structure(self):
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for i in range(self.num_layers):
+            ax.plot(self.weights[i].flatten(), label=f"Layer {i+1} Weights")
+            ax.plot(self.biases[i].flatten(), label=f"Layer {i+1} Biases")
+
+        ax.set_title("Model Structure")
+        ax.set_xlabel("Weight/Neuron Index")
+        ax.set_ylabel("Value")
+        ax.legend(loc="best")
+        plt.show()
+
+    def train(self, X_train, y_train, epochs, learning_rate, batch_size, verbose):
         num_samples = X_train.shape[0]
         loss_history = []  # Menyimpan loss training history
-        val_loss_history = []  # Menyimpan loss validation history
+
         encoder = OneHotEncoder(sparse_output=False)
         y_train_encoded = encoder.fit_transform(y_train.reshape(-1, 1)) 
-
-        if X_val is not None and y_val is not None:
-            y_val_encoded = encoder.transform(y_val.reshape(-1, 1))
+            
 
         for epoch in range(epochs):
             # Shuffle data at each epoch
@@ -319,27 +311,10 @@ class FFNN:
             # Average loss per epoch
             epoch_loss /= (num_samples / batch_size)
             loss_history.append(epoch_loss)
-
-            # Validasi jika data validasi ada
-            if X_val is not None and y_val is not None:
-                val_activations, _ = self.forward(X_val)
-                val_loss = self.count_loss(y_val_encoded, val_activations[-1])
-                val_loss_history.append(np.mean(val_loss))
-
-                # Menghitung akurasi pada data validasi
-                y_pred = np.argmax(val_activations[-1], axis=1)  # Ambil kelas dengan probabilitas tertinggi
-                y_true = np.argmax(y_val_encoded, axis=1)  # Ambil kelas sebenarnya (juga dalam bentuk one-hot)
-                accuracy = np.mean(y_pred == y_true)
-                print(f"Validation Accuracy: {accuracy:.4f}")
-
-            if verbose:
+            
+            if verbose == 1:
                 print(f"Epoch {epoch + 1}/{epochs} - Loss: {epoch_loss:.4f}")
-                if X_val is not None and y_val is not None:
-                    print(f"Validation Loss: {np.mean(val_loss):.4f}")
 
-            # self.plot_weight_distribution()  # Menampilkan distribusi bobot
-            # self.plot_gradient_distribution()  # Menampilkan distribusi gradien
+        # Display the loss curve after training
+        self.plot_loss_curve(loss_history)
 
-        # Setelah semua epoch selesai, tampilkan grafik loss
-        self.plot_loss_curve(loss_history, val_loss_history)  # Grafik loss training dan validasi
-        # self.plot_confusion_matrix(X_val, y_val)  # Menampilkan confusion matrix jika ada data validasi
