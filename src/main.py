@@ -5,6 +5,7 @@ import json
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
+import networkx as nx
 
 class FFNN:
     def __init__(self, layers, activation_functions, loss_function="mse", weight_method='xavier', seed=None, low_bound = -1, up_bound = 1, mean = 0.0, variance = 0.1, regularization=None, lambda_reg=0.01, rms_norm=False):
@@ -25,7 +26,8 @@ class FFNN:
 
         self.weights = []
         self.biases = []
-        self.gradients = []
+        self.w_gradients = []
+        self.b_gradients = []
         self.rms_layer = []
 
         # agar hasil random bisa sama untuk seed sama
@@ -243,8 +245,116 @@ class FFNN:
                 weight_gradient[l] += 2 * self.lambda_reg * self.weights[l]
             self.weights[l] -= learning_rate * weight_gradient[l]
             self.biases[l] -= learning_rate * biases_gradient[l]
+        
+        self.w_gradients = weight_gradient
+        self.b_gradients = biases_gradient
 
-        return weight_gradient, biases_gradient
+    def plot_model_structure(self, show_weights=True, show_gradients=True):
+        G = nx.DiGraph()
+
+        edge_labels = {}
+        # # Input nodes
+        # for i in range(self.layers[0]):
+        #     G.add_node(f"x{i+1}", layer="input")
+
+        # Hidden layer nodes
+        for hidden_idx in range(1, self.num_layers):
+            for neuron_idx in range(self.layers[hidden_idx]):
+                G.add_node(f"h{hidden_idx}-{neuron_idx+1}", layer="hidden")
+            G.add_node(f"b{hidden_idx}", layer="bias")
+
+        # Output nodes
+        for neuron_idx in range(self.layers[-1]):
+            G.add_node(f"o{neuron_idx+1}", layer="output")
+
+        # # Edge dari input ke h-1
+        # for i in range (self.layers[0]):
+        #     for j in range (self.layers[1]):
+        #         G.add_edge(f"x{i+1}", f"h1-{j+1}")
+
+        # Edge dari setiap hidden layer
+        for i in range(1, self.num_layers-1):
+            for j in range(self.layers[i]):
+                for k in range(self.layers[i+1]):
+                    # G.add_edge(f"h{i}-{j+1}", f"h{i+1}-{k+1}")
+                    from_node = f"h{i}-{j+1}"
+                    to_node = f"h{i+1}-{k+1}"
+                    G.add_edge(from_node, to_node)
+
+                    if show_weights:
+                        weight = self.weights[i][j][k]
+                        label = f"W:{weight:.2f}"
+                        if show_gradients and len(self.w_gradients) > i:
+                            grad = self.w_gradients[i][j][k]
+                            label += f"\nG:{grad:.2f}"
+                        edge_labels[(from_node, to_node)] = label
+
+        # # Edge dari hidden terakhir ke output
+        # for i in range (self.layers[-2]):
+        #     for j in range (self.layers[-1]):
+        #         G.add_edge(f"h{self.num_layers-1}-{i+1}", f"o{j+1}")
+
+        # Edge dari hidden terakhir ke output
+        last_hidden = self.num_layers - 1
+        for i in range(self.layers[-2]):
+            for j in range(self.layers[-1]):
+                from_node = f"h{last_hidden}-{i+1}"
+                to_node = f"o{j+1}"
+                G.add_edge(from_node, to_node)
+
+                if show_weights:
+                    weight = self.weights[-1][i][j]
+                    label = f"W:{weight:.2f}"
+                    if show_gradients and len(self.w_gradients) > last_hidden - 1:
+                        grad = self.w_gradients[-1][i][j]
+                        label += f"\nG:{grad:.2f}"
+                    edge_labels[(from_node, to_node)] = label
+
+        # # Edge dari bias ke masing-masing hidden layer
+        # for i in range (self.num_layers-1):
+        #     for j in range (self.layers[i+1]):
+        #         G.add_edge(f"b{i+1}", f"h{i+1}-{j+1}")
+
+        # Edge dari bias ke masing-masing hidden layer
+        for i in range(1, self.num_layers):
+            for j in range(self.layers[i]):
+                from_node = f"b{i}"
+                to_node = f"h{i}-{j+1}"
+                G.add_edge(from_node, to_node)
+                # Bias weight is just bias value
+                if show_weights:
+                    bias_val = self.biases[i-1][0][j]
+                    label = f"B:{bias_val:.2f}"
+                    if show_gradients and len(self.b_gradients) > i-1:
+                        bias_grad = self.b_gradients[i-1][0][j]
+                        label += f"\nG:{bias_grad:.2f}"
+                    edge_labels[(from_node, to_node)] = label
+
+
+        pos = {}
+        vertical_spacing = 50
+        horizontal_spacing = 50
+
+        for hidden_idx in range(1, self.num_layers):
+            for neuron_idx in range(self.layers[hidden_idx]):
+                pos[f"h{hidden_idx}-{neuron_idx+1}"] = (hidden_idx * horizontal_spacing, neuron_idx * vertical_spacing)
+
+
+        for neuron_idx in range(self.layers[-1]):
+            pos[f"o{neuron_idx+1}"] = ((self.num_layers) * horizontal_spacing, neuron_idx * vertical_spacing)
+
+        for hidden_idx in range(1, self.num_layers):
+            pos[f"b{hidden_idx}"] = ((hidden_idx) * (horizontal_spacing) - 20, -80)
+
+
+        # Visualisasi graph menggunakan matplotlib
+        plt.figure(figsize=(7, 5))
+        nx.draw(G, pos, with_labels=True, node_size=700, node_color='skyblue', font_size=10, font_weight='bold', arrows=True)
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=7)
+
+        # Tampilkan plot
+        plt.title("FFNN Graph")
+        plt.show()
 
     def plot_loss_curve(self, loss_history):
         plt.plot(loss_history, label="Training Loss")
@@ -254,29 +364,30 @@ class FFNN:
         plt.legend()
         plt.show()
 
-    def plot_confusion_matrix(self, X_test, y_test):
-        activations, _ = self.forward(X_test)
-        y_pred = np.argmax(activations[-1], axis=1)
-        cm = confusion_matrix(y_test, y_pred)
+    def plot_weight_distribution(self, layer_indices=None):
+        if layer_indices is None:
+            layer_indices = range(self.num_layers)
 
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=np.arange(10), yticklabels=np.arange(10))
-        plt.title("Confusion Matrix")
-        plt.xlabel("Predicted")
-        plt.ylabel("True")
-        plt.show()
-        
-    def plot_model_structure(self):
-        fig, ax = plt.subplots(figsize=(10, 6))
-        for i in range(self.num_layers):
-            ax.plot(self.weights[i].flatten(), label=f"Layer {i+1} Weights")
-            ax.plot(self.biases[i].flatten(), label=f"Layer {i+1} Biases")
+        for i in layer_indices:
+            plt.figure(figsize=(8, 6))
+            plt.hist(self.weights[i].flatten(), bins=50)
+            plt.title(f'Weight Distribution for Layer {i+1}')
+            plt.xlabel('Weight Value')
+            plt.ylabel('Frequency')
+            plt.show()
 
-        ax.set_title("Model Structure")
-        ax.set_xlabel("Weight/Neuron Index")
-        ax.set_ylabel("Value")
-        ax.legend(loc="best")
-        plt.show()
+    def plot_gradient_distribution(self, layer_indices=None):
+        if layer_indices is None:
+            layer_indices = range(self.num_layers)
+
+        for i in layer_indices:
+            plt.figure(figsize=(8, 6))
+            if i < len(self.w_gradients): 
+                plt.hist(self.w_gradients[i].flatten(), bins=50)
+                plt.title(f'Gradient Distribution for Layer {i+1}')
+                plt.xlabel('Gradient Value')
+                plt.ylabel('Frequency')
+                plt.show()
 
     def train(self, X_train, y_train, epochs, learning_rate, batch_size, verbose):
         num_samples = X_train.shape[0]
